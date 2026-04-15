@@ -11,18 +11,8 @@ from mcp.server.fastmcp import FastMCP
 
 from ..client import RoboflowClient
 from ..config import RoboflowSettings
-from ..errors import ConfigurationError
 from ..models.workspace import Project, Workspace
-
-
-def _resolve_workspace(arg: str | None, settings: RoboflowSettings) -> str:
-    slug = arg or settings.workspace
-    if not slug:
-        raise ConfigurationError(
-            "No workspace specified. Pass a workspace argument or set "
-            "ROBOFLOW_WORKSPACE in the environment."
-        )
-    return slug
+from ._common import resolve_workspace
 
 
 async def get_workspace_impl(
@@ -32,7 +22,7 @@ async def get_workspace_impl(
     settings: RoboflowSettings,
 ) -> Workspace:
     """Fetch a workspace and parse it into a ``Workspace`` model."""
-    slug = _resolve_workspace(workspace, settings)
+    slug = resolve_workspace(workspace, settings)
     data = await client.request("GET", f"/{slug}")
     return Workspace.model_validate(data["workspace"])
 
