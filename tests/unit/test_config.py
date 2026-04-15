@@ -40,7 +40,9 @@ def test_defaults_for_optional_fields(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ROBOFLOW_API_URL", raising=False)
     monkeypatch.delenv("ROBOFLOW_MCP_LOG_LEVEL", raising=False)
 
-    settings = RoboflowSettings()
+    # Ignore any on-disk .env so defaults are observable regardless of where
+    # the test runs from.
+    settings = RoboflowSettings(_env_file=None)
 
     assert settings.workspace is None
     assert settings.api_url == "https://api.roboflow.com"

@@ -38,7 +38,10 @@ class ImageSummary(BaseModel):
     annotations: ImageAnnotationInfo | None = None
     labels: list[Any] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
-    created: str | None = None
+    # Roboflow's docs claim `created` is a string, but the live search endpoint
+    # returns it as a Unix-millisecond int (e.g. 1715286185986). Accept either
+    # so parsing works against the real API and any future string variant.
+    created: int | str | None = None
     split: str | None = None
 
 
