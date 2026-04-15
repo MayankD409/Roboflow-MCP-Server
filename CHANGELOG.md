@@ -7,6 +7,18 @@ this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-04-15
+
+### Fixed
+- Release workflow: restrict attached assets to `*.whl` and `*.tar.gz` so the
+  `.gitignore` `uv build` writes into `dist/` is no longer uploaded to the
+  GitHub Release.
+
+### Changed
+- `docs/RELEASING.md` now documents the AA (add/add) conflicts that appear
+  on the `main` -> `develop` back-merge and shows the one-liner that
+  resolves them by taking main's side.
+
 ## [0.1.0] - 2026-04-15
 
 First public release. The server is usable end to end for dataset curation
@@ -34,5 +46,6 @@ against a real Roboflow workspace.
   Unix-millisecond int (e.g. `1715286185986`). Caught against a real
   workspace during v0.1 verification.
 
-[Unreleased]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/MayankD409/Roboflow-MCP-Server/releases/tag/v0.1.0
