@@ -40,7 +40,12 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          # Only attach real distribution artifacts. A bare `dist/*` glob picks
+          # up the `.gitignore` that `uv build` drops into the directory,
+          # which we don't want to publish as a release asset.
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
           generate_release_notes: true
           draft: false
           prerelease: false

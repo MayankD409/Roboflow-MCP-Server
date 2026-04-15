@@ -52,6 +52,26 @@ git merge --no-ff main -m "chore: back-merge vx.y.z into develop"
 git push
 ```
 
+### Handling AA (add/add) conflicts on back-merge
+
+When the release branch bumped the same files `develop` also has
+(`pyproject.toml`, `src/roboflow_mcp/__init__.py`, `CHANGELOG.md`,
+`uv.lock`), git will report them as `AA` conflicts on the back-merge.
+Take `main`'s side -- the release is the source of truth for those files:
+
+```bash
+git checkout --theirs \
+  pyproject.toml \
+  src/roboflow_mcp/__init__.py \
+  CHANGELOG.md \
+  uv.lock
+git add pyproject.toml src/roboflow_mcp/__init__.py CHANGELOG.md uv.lock
+git commit --no-edit
+git push
+```
+
+Hotfix branches have the same shape, so the same recipe applies there.
+
 ## Delete the release branch
 
 Once `main` and `develop` both contain the release merge, delete the branch:
