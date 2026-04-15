@@ -14,5 +14,8 @@ this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   settings with secret masking, secret-scrubbing log formatter, async
   Roboflow HTTP client with auto-auth and exponential-backoff retry, and a
   FastMCP server skeleton that boots cleanly with zero tools registered.
+- First real tools: `roboflow_get_workspace` and `roboflow_list_projects`.
+  Both wrap `GET /{workspace}`, honour `ROBOFLOW_WORKSPACE` as a default, and
+  return typed `Workspace`/`Project` pydantic models.
 
 [Unreleased]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/HEAD...HEAD

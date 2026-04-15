@@ -31,10 +31,11 @@ def test_build_server_has_expected_name() -> None:
     assert mcp.name == "mcp-server-roboflow"
 
 
-async def test_list_tools_starts_empty() -> None:
+async def test_list_tools_returns_registered_tools() -> None:
     mcp = build_server(_make_settings())
     tools = await mcp.list_tools()
-    assert tools == []
+    # Workspace tools land in Phase 2; as more domains register this grows.
+    assert len(tools) >= 1
 
 
 def test_main_invokes_run_over_stdio(monkeypatch: pytest.MonkeyPatch) -> None:

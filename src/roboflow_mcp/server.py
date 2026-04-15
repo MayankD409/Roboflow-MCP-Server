@@ -1,16 +1,18 @@
 """FastMCP application factory and CLI entry point.
 
-Phase 1 ships the skeleton only: a properly-named FastMCP instance with
-logging configured and no tools registered. Tool modules will import the
-server and attach themselves via ``@mcp.tool`` starting in Phase 2.
+``build_server`` wires settings, logging, a Roboflow HTTP client, and every
+tool module together into a single FastMCP instance. ``main()`` runs it over
+stdio so ``uvx mcp-server-roboflow`` is all an MCP client needs.
 """
 
 from __future__ import annotations
 
 from mcp.server.fastmcp import FastMCP
 
+from .client import RoboflowClient
 from .config import RoboflowSettings
 from .logging import configure_logging
+from .tools import workspace as workspace_tools
 
 _INSTRUCTIONS = (
     "Thin wrapper around the Roboflow API. Use the tools exposed here to "
@@ -20,17 +22,28 @@ _INSTRUCTIONS = (
 )
 
 
-def build_server(settings: RoboflowSettings | None = None) -> FastMCP:
+def build_server(
+    settings: RoboflowSettings | None = None,
+    *,
+    client: RoboflowClient | None = None,
+) -> FastMCP:
     """Create and configure the FastMCP application.
 
-    Pass ``settings`` explicitly in tests; in production we read from env.
+    Pass ``settings`` and/or ``client`` in tests; production callers rely on
+    the defaults, which read settings from the environment and build a fresh
+    ``RoboflowClient``.
     """
     settings = settings or RoboflowSettings()
     configure_logging(
         settings.log_level,
         secret=settings.api_key.get_secret_value(),
     )
-    return FastMCP(name="mcp-server-roboflow", instructions=_INSTRUCTIONS)
+    http_client = client or RoboflowClient(settings)
+    mcp = FastMCP(name="mcp-server-roboflow", instructions=_INSTRUCTIONS)
+
+    workspace_tools.register(mcp, http_client, settings)
+
+    return mcp
 
 
 def main() -> None:
