@@ -1,0 +1,9 @@
+# Default owner for everything.
+* @MayankD409
+
+# Governance files need extra care.
+/.github/           @MayankD409
+/LICENSE            @MayankD409
+/NOTICE             @MayankD409
+/SECURITY.md        @MayankD409
+/CODE_OF_CONDUCT.md @MayankD409
