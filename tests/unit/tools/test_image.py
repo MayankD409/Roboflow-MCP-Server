@@ -15,6 +15,31 @@ from roboflow_mcp.models.image import ImageSearchResult, ImageSummary
 from roboflow_mcp.tools import image as image_tools
 from tests.conftest import SettingsFactory
 
+# ---------- model parsing regressions ----------
+
+
+def test_image_summary_accepts_int_created_unix_ms() -> None:
+    # Regression: Roboflow's docs claim `created` is a string but the live API
+    # returns it as an int (Unix milliseconds, e.g. 1715286185986). Caught
+    # against a real workspace during v0.1 verification.
+    img = ImageSummary.model_validate(
+        {"id": "abc", "name": "x.jpg", "tags": [], "created": 1715286185986}
+    )
+    assert img.created == 1715286185986
+
+
+def test_image_summary_still_accepts_string_created() -> None:
+    img = ImageSummary.model_validate(
+        {"id": "abc", "name": "x.jpg", "tags": [], "created": "2026-04-15T12:00:00Z"}
+    )
+    assert img.created == "2026-04-15T12:00:00Z"
+
+
+def test_image_summary_accepts_missing_created() -> None:
+    img = ImageSummary.model_validate({"id": "abc", "name": "x.jpg"})
+    assert img.created is None
+
+
 _SEARCH_PAYLOAD: dict[str, Any] = {
     "offset": 0,
     "total": 2,
