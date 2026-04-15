@@ -12,6 +12,7 @@ from mcp.server.fastmcp import FastMCP
 from .client import RoboflowClient
 from .config import RoboflowSettings
 from .logging import configure_logging
+from .tools import image as image_tools
 from .tools import workspace as workspace_tools
 
 _INSTRUCTIONS = (
@@ -42,6 +43,7 @@ def build_server(
     mcp = FastMCP(name="mcp-server-roboflow", instructions=_INSTRUCTIONS)
 
     workspace_tools.register(mcp, http_client, settings)
+    image_tools.register(mcp, http_client, settings)
 
     return mcp
 

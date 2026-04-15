@@ -17,5 +17,10 @@ this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - First real tools: `roboflow_get_workspace` and `roboflow_list_projects`.
   Both wrap `GET /{workspace}`, honour `ROBOFLOW_WORKSPACE` as a default, and
   return typed `Workspace`/`Project` pydantic models.
+- Image search and tagging: `roboflow_search_images` (with `tag`,
+  `class_name`, and semantic `prompt` filters), plus
+  `roboflow_add_image_tags`, `roboflow_remove_image_tags`, and
+  `roboflow_set_image_tags`. Enough to drive tag-based dataset curation end
+  to end (find, tag, find again).
 
 [Unreleased]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/HEAD...HEAD
