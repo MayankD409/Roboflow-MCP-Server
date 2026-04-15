@@ -10,6 +10,6 @@ def test_version_is_a_string() -> None:
     assert roboflow_mcp.__version__
 
 
-def test_public_surface_is_minimal() -> None:
-    # The package exports only __version__ at this stage. Tools land in v0.1.
-    assert set(roboflow_mcp.__all__) == {"__version__"}
+def test_public_surface() -> None:
+    # Tools arrive later; for now we only expose the version and server hooks.
+    assert set(roboflow_mcp.__all__) == {"__version__", "build_server", "main"}

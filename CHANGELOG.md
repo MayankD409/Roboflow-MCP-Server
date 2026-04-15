@@ -10,5 +10,9 @@ this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - Initial project scaffold: Git Flow branching, CI, issue and PR templates,
   contributor docs, and Apache-2.0 license.
+- Foundation layer: typed errors (`RoboflowMCPError` and friends), env-driven
+  settings with secret masking, secret-scrubbing log formatter, async
+  Roboflow HTTP client with auto-auth and exponential-backoff retry, and a
+  FastMCP server skeleton that boots cleanly with zero tools registered.
 
 [Unreleased]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/HEAD...HEAD
