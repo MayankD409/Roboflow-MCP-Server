@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/MayankD409/Roboflow-MCP-Server/blob/main/SECURITY.md
+    about: Please report security issues privately. Do not open a public issue.
+  - name: Question or discussion
+    url: https://github.com/MayankD409/Roboflow-MCP-Server/discussions
+    about: Use Discussions for open-ended questions and ideas.
