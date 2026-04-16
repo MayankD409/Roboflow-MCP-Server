@@ -68,6 +68,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # gitleaks-action scans commits between merge-base and HEAD on PRs.
+          # A shallow clone (default depth=1) doesn't contain the base, so it
+          # errors with "unknown revision or path not in the working tree".
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
