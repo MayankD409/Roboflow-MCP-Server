@@ -84,8 +84,14 @@ jobs:
         run: uv run bandit -r src/ -c pyproject.toml
 
       - name: pip-audit
+        # `uv export` includes the project itself (mcp-server-roboflow) in the
+        # requirements file. pip-audit fails with "not found on PyPI" on any
+        # version not yet published, so strip our own package before auditing.
         run: |
-          uv export --format requirements-txt --no-hashes --all-extras > requirements.txt
+          uv export --format requirements-txt --no-hashes --all-extras \
+            | grep -v '^mcp-server-roboflow==' \
+            | grep -v '^-e \.' \
+            > requirements.txt
           uv run pip-audit --strict --requirement requirements.txt
 
       - name: Gitleaks
