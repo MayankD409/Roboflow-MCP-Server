@@ -187,9 +187,7 @@ async def fetch_bytes_safely(
         client.stream("GET", url, timeout=timeout_s) as response,
     ):
         if response.status_code >= 400:
-            raise UrlGuardError(
-                f"Fetch failed: HTTP {response.status_code} for {url}"
-            )
+            raise UrlGuardError(f"Fetch failed: HTTP {response.status_code} for {url}")
         content_length = response.headers.get("content-length")
         if content_length is not None:
             try:
@@ -202,9 +200,7 @@ async def fetch_bytes_safely(
                     f"exceeds {max_bytes} cap."
                 )
 
-        content_type = response.headers.get(
-            "content-type", "application/octet-stream"
-        )
+        content_type = response.headers.get("content-type", "application/octet-stream")
         buf = bytearray()
         async for chunk in response.aiter_bytes():
             if len(buf) + len(chunk) > max_bytes:
