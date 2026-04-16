@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-server-roboflow"
-version = "0.1.1"
-description = "MCP server that exposes the Roboflow API to MCP-compatible clients."
+version = "0.2.0"
+description = "Hardened MCP server for the Roboflow API: capability scopes, audit log, dry-run, strict TLS, Sigstore-signed releases."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -32,7 +32,6 @@ dependencies = [
   "pydantic>=2.7",
   "pydantic-settings>=2.4",
   "tenacity>=9.0",
-  "roboflow>=1.1",
   "anyio>=4.4",
 ]
 
@@ -47,6 +46,8 @@ dev = [
   "mypy>=1.11",
   "pre-commit>=3.8",
   "types-requests",
+  "bandit>=1.7",
+  "pip-audit>=2.7",
 ]
 
 [project.urls]
@@ -130,3 +131,11 @@ exclude_lines = [
   "if TYPE_CHECKING:",
   "raise NotImplementedError",
 ]
+
+# ---------- bandit ----------
+[tool.bandit]
+# Scanning source only; tests legitimately use `assert` and construct secrets
+# inline for fixtures. The CI job pins `-r src/` so this is belt-and-braces.
+exclude_dirs = ["tests"]
+# B101 (assert used), B311 (random PRNG) — not relevant for an MCP server.
+skips = ["B101", "B311"]

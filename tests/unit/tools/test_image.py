@@ -214,6 +214,7 @@ async def test_remove_tags_posts_remove_operation(
             image_id="img_abc",
             tags=["stale", "old"],
             workspace=None,
+            confirm="yes",
             client=client,
             settings=settings,
         )
@@ -236,12 +237,70 @@ async def test_set_tags_posts_set_operation(
             image_id="img_abc",
             tags=["sku-42", "2026-04"],
             workspace=None,
+            confirm="yes",
             client=client,
             settings=settings,
         )
 
     body = _body(route.calls.last.request)
     assert body == {"operation": "set", "tags": ["sku-42", "2026-04"]}
+
+
+async def test_remove_tags_requires_confirm(
+    settings_factory: SettingsFactory,
+) -> None:
+    settings = settings_factory(workspace="contoro")
+    async with RoboflowClient(settings) as client:
+        with pytest.raises(ConfigurationError, match="confirm"):
+            await image_tools.remove_image_tags_impl(
+                project="boxes",
+                image_id="img_abc",
+                tags=["stale"],
+                workspace=None,
+                # confirm missing -> default ""
+                client=client,
+                settings=settings,
+            )
+
+
+async def test_remove_tags_refuses_readonly_mode(
+    settings_factory: SettingsFactory,
+) -> None:
+    from roboflow_mcp.config import ServerMode
+    from roboflow_mcp.errors import ToolDisabledError
+
+    settings = settings_factory(workspace="contoro", mode=ServerMode.READONLY)
+    async with RoboflowClient(settings) as client:
+        with pytest.raises(ToolDisabledError, match="readonly"):
+            await image_tools.remove_image_tags_impl(
+                project="boxes",
+                image_id="img_abc",
+                tags=["stale"],
+                workspace=None,
+                confirm="yes",
+                client=client,
+                settings=settings,
+            )
+
+
+async def test_search_dry_run_does_not_hit_api(
+    settings_factory: SettingsFactory,
+) -> None:
+    settings = settings_factory(workspace="contoro")
+    async with RoboflowClient(settings) as client:
+        preview = await image_tools.search_images_impl(
+            project="boxes",
+            workspace=None,
+            tag="sku-42",
+            dry_run=True,
+            client=client,
+            settings=settings,
+        )
+
+    assert isinstance(preview, dict)
+    assert preview["dry_run"] is True
+    assert preview["method"] == "POST"
+    assert preview["path"].endswith("/boxes/search")
 
 
 async def test_tag_ops_reject_empty_list(

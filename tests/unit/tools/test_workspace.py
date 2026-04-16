@@ -118,6 +118,7 @@ async def test_list_projects_returns_all_projects(
             None, client=client, settings=settings
         )
 
+    assert isinstance(projects, list)
     assert len(projects) == 2
     assert all(isinstance(p, Project) for p in projects)
     assert [p.id for p in projects] == ["contoro/box-seg", "contoro/lidar-detect"]

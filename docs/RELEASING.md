@@ -10,9 +10,9 @@ Short playbook for cutting a release. Maintainer only.
    git checkout develop && git pull
    git checkout -b release/x.y.z
    ```
-3. Bump the version in **two** places (they must match):
-   - `pyproject.toml` -> `[project] version = "x.y.z"`
-   - `src/roboflow_mcp/__init__.py` -> `__version__ = "x.y.z"`
+3. Bump the version in `pyproject.toml` -> `[project] version = "x.y.z"`.
+   `__version__` is read from installed package metadata, so no other file
+   needs to change.
 4. Finalize `CHANGELOG.md`:
    - Move everything under `## [Unreleased]` into a new
      `## [x.y.z] - YYYY-MM-DD` section.
@@ -38,8 +38,10 @@ The tag push triggers `.github/workflows/release.yml`, which:
 
 1. Runs the test suite one more time.
 2. Builds the sdist and wheel with `uv build`.
-3. Creates a GitHub Release with auto-generated notes and attaches the
-   artifacts.
+3. Publishes both artifacts to PyPI via a Trusted Publisher (OIDC); no API
+   token is stored in the repo.
+4. Creates a GitHub Release with auto-generated notes and attaches the
+   same artifacts.
 
 ## Close out
 
@@ -55,17 +57,16 @@ git push
 ### Handling AA (add/add) conflicts on back-merge
 
 When the release branch bumped the same files `develop` also has
-(`pyproject.toml`, `src/roboflow_mcp/__init__.py`, `CHANGELOG.md`,
-`uv.lock`), git will report them as `AA` conflicts on the back-merge.
-Take `main`'s side -- the release is the source of truth for those files:
+(`pyproject.toml`, `CHANGELOG.md`, `uv.lock`), git will report them as
+`AA` conflicts on the back-merge. Take `main`'s side -- the release is
+the source of truth for those files:
 
 ```bash
 git checkout --theirs \
   pyproject.toml \
-  src/roboflow_mcp/__init__.py \
   CHANGELOG.md \
   uv.lock
-git add pyproject.toml src/roboflow_mcp/__init__.py CHANGELOG.md uv.lock
+git add pyproject.toml CHANGELOG.md uv.lock
 git commit --no-edit
 git push
 ```
@@ -84,19 +85,23 @@ git push origin --delete release/x.y.z
 (If branch protection auto-delete is on, the remote branch goes away on
 merge and only the local delete is needed.)
 
-## PyPI publishing (not yet wired up)
+## PyPI trusted publisher setup (one-time)
 
-v0.1.0 ships as a GitHub Release only. To enable `pip install mcp-server-roboflow`:
+The `release.yml` workflow publishes to PyPI via OIDC, so no API token is
+stored anywhere. Setup only needs to happen once per PyPI project:
 
 1. Reserve `mcp-server-roboflow` on [pypi.org](https://pypi.org/) under a
-   maintainer account.
-2. Configure a [trusted publisher](https://docs.pypi.org/trusted-publishers/)
-   on PyPI pointing at this repo's `release.yml` workflow. No API token
-   needed; PyPI verifies against GitHub's OIDC.
-3. Add a step to `release.yml`:
-   ```yaml
-   - uses: pypa/gh-action-pypi-publish@release/v1
-   ```
-4. Bump the `permissions` block to include `id-token: write`.
+   maintainer account (already done for the initial release).
+2. On the project's Settings -> Publishing page, add a GitHub trusted
+   publisher with:
+   - Owner: `MayankD409`
+   - Repository: `Roboflow-MCP-Server`
+   - Workflow: `release.yml`
+   - Environment: `pypi`
+3. The workflow targets the `pypi` environment so you can optionally add
+   required reviewers in GitHub repo settings for an extra approval gate
+   on every publish.
 
-Keep this section until the PyPI flow is live; delete it after.
+If publishing to TestPyPI as a dry run, duplicate the step in `release.yml`
+with `repository-url: https://test.pypi.org/legacy/` and a second trusted
+publisher registration on TestPyPI.

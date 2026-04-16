@@ -45,3 +45,23 @@ class RoboflowAPIError(RoboflowMCPError):
         super().__init__(f"Roboflow API {status}: {message}")
         self.status = status
         self.payload: dict[str, object] = payload or {}
+
+
+class ToolDisabledError(ConfigurationError):
+    """Raised when a tool is denied by allow/deny lists or server mode."""
+
+
+class QuotaExceededError(RoboflowMCPError):
+    """Raised when the client-side rate limit is exceeded."""
+
+    def __init__(self, message: str, *, retry_after: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+class CircuitOpenError(RoboflowMCPError):
+    """Raised when the circuit breaker has tripped and is cooling down."""
+
+    def __init__(self, message: str, *, retry_after: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after

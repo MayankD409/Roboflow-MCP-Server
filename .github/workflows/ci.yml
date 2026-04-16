@@ -11,13 +11,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  lint-typecheck-test:
     name: lint + typecheck + test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - os: macos-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
     env:
       PY_VERSION: ${{ matrix.python-version }}
     steps:
@@ -30,24 +36,70 @@ jobs:
 
       - name: Set up Python
         run: uv python install "$PY_VERSION"
+        shell: bash
 
       - name: Install project
         run: uv sync --all-extras --python "$PY_VERSION"
+        shell: bash
 
       - name: Lint
         run: |
           uv run ruff format --check .
           uv run ruff check .
+        shell: bash
 
       - name: Typecheck
         run: uv run mypy src tests
+        shell: bash
 
       - name: Test
         run: uv run pytest --cov --cov-report=xml
+        shell: bash
 
       - name: Upload coverage
-        if: env.PY_VERSION == '3.12'
+        if: env.PY_VERSION == '3.12' && matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v6
         with:
           files: coverage.xml
           fail_ci_if_error: false
+
+  security:
+    name: security scans
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # gitleaks-action scans commits between merge-base and HEAD on PRs.
+          # A shallow clone (default depth=1) doesn't contain the base, so it
+          # errors with "unknown revision or path not in the working tree".
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install project
+        run: uv sync --all-extras
+
+      - name: Bandit
+        run: uv run bandit -r src/ -c pyproject.toml
+
+      - name: pip-audit
+        # `uv export` includes the project itself (mcp-server-roboflow) in the
+        # requirements file. pip-audit fails with "not found on PyPI" on any
+        # version not yet published, so strip our own package before auditing.
+        run: |
+          uv export --format requirements-txt --no-hashes --all-extras \
+            | grep -v '^mcp-server-roboflow==' \
+            | grep -v '^-e \.' \
+            > requirements.txt
+          uv run pip-audit --strict --requirement requirements.txt
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
