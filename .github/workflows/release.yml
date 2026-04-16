@@ -41,9 +41,12 @@ jobs:
         run: ls -la dist/
 
       - name: Generate CycloneDX SBOM
+        # Emitted to `sbom/` (not `dist/`) so the PyPI publisher's preflight
+        # check doesn't try to validate it as a Python distribution.
         run: |
+          mkdir -p sbom
           uv run --with cyclonedx-bom \
-            cyclonedx-py environment --output-format json --output-file dist/sbom.cdx.json
+            cyclonedx-py environment --output-format json --output-file sbom/sbom.cdx.json
 
       - name: Compute artifact hashes for provenance
         id: hash
@@ -58,6 +61,13 @@ jobs:
         with:
           name: dist
           path: dist/
+          retention-days: 7
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom/
           retention-days: 7
 
   provenance:
@@ -86,6 +96,12 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Download SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: sbom/
+
       - name: Download SLSA provenance
         uses: actions/download-artifact@v4
         with:
@@ -95,7 +111,10 @@ jobs:
       - name: Publish to PyPI
         # OIDC-based Trusted Publisher. PyPI project settings must have this
         # repo + release.yml + environment "pypi" registered. See
-        # https://docs.pypi.org/trusted-publishers/ .
+        # https://docs.pypi.org/trusted-publishers/ . `packages-dir: dist/`
+        # is intentionally the only input pointing at artifacts — the SBOM
+        # and provenance live in sibling directories so twine's preflight
+        # check doesn't try to validate them as distributions.
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
@@ -109,7 +128,7 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
-            dist/sbom.cdx.json
+            sbom/sbom.cdx.json
             provenance/*
           generate_release_notes: true
           draft: false
