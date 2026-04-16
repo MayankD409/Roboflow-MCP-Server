@@ -7,18 +7,21 @@ on:
 
 permissions:
   contents: write
+  id-token: write  # PyPI Trusted Publisher OIDC + Sigstore + SLSA provenance
 
 jobs:
-  release:
-    name: Build artifacts and publish GitHub Release
+  build:
+    name: Build sdist and wheel
     runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -37,15 +40,77 @@ jobs:
       - name: Show artifacts
         run: ls -la dist/
 
+      - name: Generate CycloneDX SBOM
+        run: |
+          uv run --with cyclonedx-bom \
+            cyclonedx-py environment --output-format json --output-file dist/sbom.cdx.json
+
+      - name: Compute artifact hashes for provenance
+        id: hash
+        run: |
+          set -euo pipefail
+          cd dist
+          HASHES=$(sha256sum *.whl *.tar.gz | base64 -w0)
+          echo "hashes=${HASHES}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  provenance:
+    name: Generate SLSA provenance
+    needs: [build]
+    permissions:
+      id-token: write  # mint OIDC token for the generator
+      contents: write  # attach provenance to the GitHub Release
+      actions: read
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.hashes }}
+      upload-assets: false  # we attach to the GH Release explicitly below
+
+  publish:
+    name: Publish to PyPI and create GitHub Release
+    needs: [build, provenance]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/mcp-server-roboflow
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Download SLSA provenance
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.provenance.outputs.provenance-name }}
+          path: provenance/
+
+      - name: Publish to PyPI
+        # OIDC-based Trusted Publisher. PyPI project settings must have this
+        # repo + release.yml + environment "pypi" registered. See
+        # https://docs.pypi.org/trusted-publishers/ .
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: false
+          verbose: true
+          attestations: true  # Sigstore attestations published alongside artifact
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # Only attach real distribution artifacts. A bare `dist/*` glob picks
-          # up the `.gitignore` that `uv build` drops into the directory,
-          # which we don't want to publish as a release asset.
           files: |
             dist/*.whl
             dist/*.tar.gz
+            dist/sbom.cdx.json
+            provenance/*
           generate_release_notes: true
           draft: false
           prerelease: false
