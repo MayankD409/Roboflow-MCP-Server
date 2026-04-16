@@ -7,6 +7,124 @@ this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-16
+
+### Added — ingestion tools (13 new tools, 20 total)
+
+- **`roboflow_upload_image`** — upload a single image from URL / local
+  path / inline base64. Every mode runs through the SSRF + path +
+  image guards before the multipart POST.
+- **`roboflow_upload_images_batch`** — concurrent upload with
+  configurable concurrency (1–16). Partial-failure tolerant.
+- **`roboflow_delete_image`** — destructive; requires `confirm="yes"`.
+- **`roboflow_upload_annotation`** — attach COCO, YOLO, Pascal VOC,
+  CreateML, or Roboflow JSON annotations to an existing image.
+- **`roboflow_get_image`** — read one image's metadata.
+- **`roboflow_list_image_batches`** — enumerate upload batches.
+- **`roboflow_get_project`** — read project-level metadata.
+- **`roboflow_list_versions`** — enumerate dataset versions.
+- **`roboflow_get_version`** — read one version.
+- **`roboflow_create_version`** — kick off async generation
+  (quota-heavy, destructive-of-quota, requires `confirm="yes"`).
+- **`roboflow_get_version_generation_status`** — poll an async
+  generation without blocking inside the tool call.
+- **`roboflow_export_version`** — fetch a signed download URL for a
+  generated version in a specific format.
+- **`roboflow_delete_version`** — destructive; requires `confirm="yes"`.
+- **`roboflow_download_export`** — stream an export zip to disk
+  (destructive-to-fs, requires `confirm="yes"` and
+  `ROBOFLOW_MCP_ENABLE_DOWNLOADS=true`).
+
+### Added — first MCP Resource
+
+- **`roboflow://workspace/{ws}/projects/{project}/versions/{version}`**
+  — Markdown summary of a dataset version (classes, splits,
+  preprocessing, augmentation). Sets the pattern for workspace and
+  workflow resources in later releases.
+
+### Added — safety primitives (new `src/roboflow_mcp/safety/` modules)
+
+- **`urlguard.py`** — SSRF defense: scheme allowlist, IP-range
+  blocklist (RFC1918 / loopback / link-local / metadata / multicast /
+  reserved / unspecified), DNS resolve before connect, 25 MiB / 30 s
+  streaming caps. Residual DNS-rebinding window documented;
+  full mitigation (pinned-IP transport) deferred to v0.5.
+- **`paths.py`** — path-traversal defense: rejects symlinks,
+  `Path.resolve(strict=True)`, must live under one of
+  `ROBOFLOW_MCP_UPLOAD_ROOTS`.
+- **`imageguard.py`** — image-content validation: Pillow
+  `verify()+load()`, MIME whitelist (JPEG/PNG/WebP/BMP/TIFF/GIF),
+  dimension + size caps, decompression-bomb guard via
+  `Image.MAX_IMAGE_PIXELS = 100_000_000`. Subprocess isolation
+  deferred to v0.4.
+- **`models/io.py`** — `ImageSource` discriminated pydantic union
+  (URL / path / base64), `resolve_source()` orchestrates all three
+  guards.
+
+### Added — client capabilities
+
+- `RoboflowClient.request_multipart()` — multipart POST helper, **retry
+  disabled** because uploads aren't idempotent.
+- `RoboflowClient.stream_to_file()` — streaming GET for exports;
+  auto-deletes a partial file on error.
+
+### Added — config (new env vars)
+
+- `ROBOFLOW_MCP_UPLOAD_ROOTS` — CSV of allowed upload roots.
+- `ROBOFLOW_MCP_MAX_UPLOAD_BYTES` — per-file cap (default 25 MiB).
+- `ROBOFLOW_MCP_EXPORT_CACHE_DIR` — zip destination (default
+  `~/.cache/roboflow-mcp`).
+- `ROBOFLOW_MCP_ENABLE_DOWNLOADS` — hard off-switch for
+  `roboflow_download_export`.
+
+### Added — distribution
+
+- **Multi-arch Docker image** at `ghcr.io/mayankd409/mcp-server-roboflow`
+  (`linux/amd64` + `linux/arm64`), built on every release tag via
+  `docker/build-push-action`, distroless-python runtime, Trivy-scanned
+  with HIGH/CRITICAL as a failure gate.
+- New `Dockerfile` (multi-stage: `python:3.12-slim` builder →
+  `gcr.io/distroless/python3-debian12:nonroot` runtime) and
+  `.dockerignore`.
+- Three example scripts under `examples/`:
+  - `curate_dataset.py` — tag-based curation workflow
+  - `upload_and_annotate.py` — local-path upload + YOLO annotation
+  - `export_and_train_prep.py` — async version generation → export →
+    download → extract end-to-end
+
+### Added — test infrastructure
+
+- New `tests/redteam/` markers for adversarial-input fixtures.
+- `hypothesis` added to `[dev]` extras (ready for property-based
+  fuzzing of the safety guards).
+- `roboflow>=1.1` added as a `[sdk]` optional extra, lazy-imported
+  only inside `roboflow_download_export` for zip-unpacking quirks.
+- `Pillow>=10.3` added to runtime deps (image content validation).
+
+### Changed
+
+- `RoboflowSettings` now includes the v0.3 ingestion fields
+  (`upload_roots`, `max_upload_bytes`, `export_cache_dir`,
+  `enable_downloads`). All are opt-in with safe defaults.
+- `server.py` registers the v0.3 tool domains + version resource.
+- `docs/HARDENING.md` extended with upload-root and download-cache
+  operator guidance; `docs/SECURITY_MODEL.md` updated to cite the
+  T3/T4/T8 mitigations now in code.
+- `docs/TOOLS.md` rewritten to cover all 20 tools + the first resource.
+
+### Security
+
+- Closes threats T3 (SSRF on URL uploads), T4 (path traversal on local
+  uploads), T8 (malformed-image exploits) from `docs/SECURITY_MODEL.md`
+  as best-case mitigations given the residual DNS-rebinding window
+  (full close in v0.5) and inline (not subprocess-isolated) PIL
+  validation (subprocess in v0.4).
+- Zip-slip guard on `roboflow_download_export(extract=True)`.
+- Destructive-ops gating + dry-run + audit log extended to every new
+  tool.
+
+## [0.2.1] - unreleased (prep for v0.3)
+
 ### Changed
 - CI: every GitHub Actions `uses:` is now pinned to a full 40-character
   commit SHA with a trailing version comment. Hardens against re-tag
@@ -157,7 +275,8 @@ against a real Roboflow workspace.
   Unix-millisecond int (e.g. `1715286185986`). Caught against a real
   workspace during v0.1 verification.
 
-[Unreleased]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/MayankD409/Roboflow-MCP-Server/releases/tag/v0.1.0

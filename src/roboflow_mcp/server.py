@@ -1,9 +1,9 @@
 """FastMCP application factory and CLI entry point.
 
 ``build_server`` wires settings, logging, an audit logger, a Roboflow HTTP
-client, and every tool module together into a single FastMCP instance.
-``main()`` runs it over stdio so ``uvx mcp-server-roboflow`` is all an MCP
-client needs.
+client, every tool module, and every resource together into a single
+FastMCP instance. ``main()`` runs it over stdio so ``uvx
+mcp-server-roboflow`` is all an MCP client needs.
 """
 
 from __future__ import annotations
@@ -14,18 +14,29 @@ from .audit import AuditLogger
 from .client import RoboflowClient
 from .config import RoboflowSettings
 from .logging import configure_logging
+from .resources import version as version_resource
+from .tools import annotation as annotation_tools
+from .tools import download as download_tools
 from .tools import image as image_tools
+from .tools import project as project_tools
+from .tools import upload as upload_tools
+from .tools import version as version_tools
 from .tools import workspace as workspace_tools
 
 _INSTRUCTIONS = (
-    "Thin wrapper around the Roboflow API. Use the tools exposed here to "
-    "inspect workspaces and projects, upload and tag images, and manage "
-    "annotations. Set ROBOFLOW_API_KEY in the environment before calling any "
-    "tool. Destructive operations (removing / replacing tags, future "
-    "deletes) require ROBOFLOW_MCP_MODE=curate or full and a confirm='yes' "
-    "argument. Use dry_run=True to preview a request without calling the "
-    "API. Every tool invocation is recorded in the JSONL audit log at "
-    "ROBOFLOW_MCP_AUDIT_LOG (stderr if unset)."
+    "Hardened Roboflow MCP server (v0.3). Covers workspace/project read, "
+    "image search + tag CRUD, image upload (URL / local path / base64), "
+    "annotation upload (COCO / YOLO / Pascal VOC / CreateML / Roboflow "
+    "JSON), project + version lifecycle, and streaming dataset export. "
+    "Set ROBOFLOW_API_KEY in the environment. Destructive operations "
+    "(remove/replace tags, delete image/version, download export) "
+    "require ROBOFLOW_MCP_MODE=curate or full AND a literal "
+    "confirm='yes' argument. Use dry_run=True to preview any tool "
+    "without hitting the API. URL uploads go through an SSRF guard; "
+    "path uploads go through a path-traversal guard and must live under "
+    "ROBOFLOW_MCP_UPLOAD_ROOTS; every image is validated with Pillow "
+    "before upload. Every invocation is recorded in the JSONL audit "
+    "log at ROBOFLOW_MCP_AUDIT_LOG (stderr if unset)."
 )
 
 
@@ -50,8 +61,17 @@ def build_server(
     audit_logger = audit or AuditLogger(path=settings.audit_log_path)
     mcp = FastMCP(name="mcp-server-roboflow", instructions=_INSTRUCTIONS)
 
+    # Tools
     workspace_tools.register(mcp, http_client, settings, audit=audit_logger)
     image_tools.register(mcp, http_client, settings, audit=audit_logger)
+    upload_tools.register(mcp, http_client, settings, audit=audit_logger)
+    annotation_tools.register(mcp, http_client, settings, audit=audit_logger)
+    project_tools.register(mcp, http_client, settings, audit=audit_logger)
+    version_tools.register(mcp, http_client, settings, audit=audit_logger)
+    download_tools.register(mcp, http_client, settings, audit=audit_logger)
+
+    # Resources
+    version_resource.register(mcp, http_client, settings, audit=audit_logger)
 
     return mcp
 

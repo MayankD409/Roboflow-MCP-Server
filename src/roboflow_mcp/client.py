@@ -222,6 +222,103 @@ class RoboflowClient:
         # Unreachable: AsyncRetrying with reraise=True either returns or raises.
         raise RuntimeError("retry loop exited without a result")  # pragma: no cover
 
+    async def request_multipart(
+        self,
+        method: str,
+        path: str,
+        *,
+        files: dict[str, Any],
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        """Multipart POST, auto-authenticated, quota-gated, **NOT retried**.
+
+        Retry is disabled here because multipart uploads aren't
+        idempotent — a retry after a partial receive can result in
+        duplicate images being ingested. The server-side 429/5xx story
+        is therefore the caller's to handle, but this is the correct
+        default for uploads.
+
+        ``files`` follows httpx's semantics: map of field-name to either
+        ``bytes``, ``(filename, bytes)``, or ``(filename, bytes,
+        content_type)``.
+        """
+        merged_params = dict(params or {})
+        merged_params.setdefault("api_key", self._settings.api_key.get_secret_value())
+
+        await self._bucket.acquire()
+        await self._breaker.before_request()
+
+        try:
+            response = await self._client.request(
+                method,
+                path,
+                files=files,
+                data=data,
+                params=merged_params,
+            )
+            self._raise_for_status(response)
+        except (RoboflowAPIError, httpx.TransportError):
+            await self._breaker.record_outcome(success=False)
+            raise
+        else:
+            await self._breaker.record_outcome(success=True)
+            return _parse_response(response)
+
+    async def stream_to_file(
+        self,
+        method: str,
+        path: str,
+        *,
+        dest: Any,  # pathlib.Path — Any to avoid import cycle with stdlib
+        params: dict[str, Any] | None = None,
+        max_bytes: int | None = None,
+    ) -> int:
+        """Stream a response body into ``dest`` and return the byte count.
+
+        Used by the export-download path to save a potentially large zip
+        without buffering the whole thing in memory. Honours the same
+        quota + circuit-breaker + auth plumbing as :meth:`request`, but
+        retry is disabled because half-written files are hard to recover.
+        """
+        from pathlib import Path as _Path
+
+        destination = _Path(dest)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        merged_params = dict(params or {})
+        merged_params.setdefault("api_key", self._settings.api_key.get_secret_value())
+
+        await self._bucket.acquire()
+        await self._breaker.before_request()
+
+        bytes_written = 0
+        try:
+            async with self._client.stream(
+                method, path, params=merged_params
+            ) as response:
+                self._raise_for_status(response)
+                with destination.open("wb") as fh:
+                    async for chunk in response.aiter_bytes():
+                        if (
+                            max_bytes is not None
+                            and bytes_written + len(chunk) > max_bytes
+                        ):
+                            raise RoboflowAPIError(
+                                response.status_code,
+                                f"Stream exceeds {max_bytes} bytes",
+                            )
+                        fh.write(chunk)
+                        bytes_written += len(chunk)
+        except (RoboflowAPIError, httpx.TransportError):
+            # Tidy up a half-written file so the next retry starts clean.
+            destination.unlink(missing_ok=True)
+            await self._breaker.record_outcome(success=False)
+            raise
+        else:
+            await self._breaker.record_outcome(success=True)
+            return bytes_written
+
     @staticmethod
     def _raise_for_status(response: httpx.Response) -> None:
         if response.is_success:
