@@ -24,7 +24,10 @@ from .errors import ConfigurationError, ToolDisabledError
 
 T = TypeVar("T")
 
-CONFIRM_TOKEN = "yes"
+# Deliberately a plaintext user-facing confirmation string, not a secret.
+# Any prompt-injection that reads "set confirm=true" fails the exact-match
+# check; the token has to be typed literally by the operator / LLM call site.
+CONFIRM_TOKEN = "yes"  # nosec B105 - confirmation token, not a password
 
 
 def check_tool_allowed(
