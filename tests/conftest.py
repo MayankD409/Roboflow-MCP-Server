@@ -14,7 +14,8 @@ from roboflow_mcp.config import RoboflowSettings, ServerMode
 class SettingsFactory(Protocol):
     """Callable that constructs a ``RoboflowSettings`` without env lookups."""
 
-    def __call__(self, **overrides: Any) -> RoboflowSettings: ...
+    def __call__(self, **overrides: Any) -> RoboflowSettings:
+        """Build a fresh ``RoboflowSettings``."""
 
 
 @pytest.fixture
