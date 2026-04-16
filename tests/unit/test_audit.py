@@ -94,11 +94,20 @@ def test_span_records_outcome_on_success() -> None:
 def test_span_records_error_class_on_exception() -> None:
     buf = io.StringIO()
     logger = AuditLogger(path=None, stream=buf)
+
+    # Raise from a helper rather than inline so CodeQL's control-flow
+    # analysis sees a regular function call (which may or may not raise)
+    # rather than a bare `raise` statement that it would mark as
+    # unconditionally terminating the with-block.
+    def _boom() -> None:
+        raise ValueError("boom")
+
     with (
         pytest.raises(ValueError),
         logger.span(tool="t", mode="curate", workspace=None, args={"k": "v"}),
     ):
-        raise ValueError("boom")
+        _boom()
+
     record = json.loads(buf.getvalue().strip())
     assert record["outcome"] == "error"
     assert record["error_class"] == "ValueError"
