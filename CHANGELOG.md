@@ -7,6 +7,24 @@ this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- CI: every GitHub Actions `uses:` is now pinned to a full 40-character
+  commit SHA with a trailing version comment. Hardens against re-tag
+  supply-chain attacks (see the `tj-actions/changed-files` March 2025
+  incident). Dependabot continues to bump these weekly. Two
+  intentional exceptions (rolling `pypa/gh-action-pypi-publish@release/v1`
+  per PyPA guidance; reusable workflow
+  `slsa-framework/slsa-github-generator@v2.0.0` per SLSA guidance) are
+  documented inline and in `docs/CI_PINS.md`.
+- CI: bumped `actions/upload-artifact` v4→v5 and `actions/download-artifact`
+  v4→v5 to get Node.js 24 runtime ahead of the September 16 2026 Node 20
+  removal on GitHub-hosted runners.
+
+### Added
+- `docs/CI_PINS.md` — pinning rationale, format, exceptions, and the
+  two v0.2-release lessons (branch-protection context drift on job
+  renames, and `packages-dir` purity for the PyPI publisher).
+
 ## [0.2.0] - 2026-04-16
 
 ### Added

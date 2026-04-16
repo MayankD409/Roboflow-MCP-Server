@@ -16,12 +16,12 @@ jobs:
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           enable-cache: true
 
@@ -57,14 +57,14 @@ jobs:
           echo "hashes=${HASHES}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0 (Node 24)
         with:
           name: dist
           path: dist/
           retention-days: 7
 
       - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0 (Node 24)
         with:
           name: sbom
           path: sbom/
@@ -77,6 +77,8 @@ jobs:
       id-token: write  # mint OIDC token for the generator
       contents: write  # attach provenance to the GitHub Release
       actions: read
+    # Reusable workflow: per SLSA docs, pin to a tag (not a SHA) so the
+    # generator can validate its own provenance. v2.0.0 is the latest stable.
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     with:
       base64-subjects: ${{ needs.build.outputs.hashes }}
@@ -91,19 +93,19 @@ jobs:
       url: https://pypi.org/p/mcp-server-roboflow
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0 (Node 24)
         with:
           name: dist
           path: dist/
 
       - name: Download SBOM
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0 (Node 24)
         with:
           name: sbom
           path: sbom/
 
       - name: Download SLSA provenance
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0 (Node 24)
         with:
           name: ${{ needs.provenance.outputs.provenance-name }}
           path: provenance/
@@ -115,6 +117,9 @@ jobs:
         # is intentionally the only input pointing at artifacts — the SBOM
         # and provenance live in sibling directories so twine's preflight
         # check doesn't try to validate them as distributions.
+        # Rolling `release/v1` reference is PyPA's recommendation for Trusted
+        # Publishers — pinning to a SHA would miss security fixes in the
+        # publisher action. Documented in docs/CI_PINS.md.
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
@@ -123,7 +128,7 @@ jobs:
           attestations: true  # Sigstore attestations published alongside artifact
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: |
             dist/*.whl
