@@ -154,6 +154,65 @@ export ROBOFLOW_MCP_ALLOW_INSECURE=1
 Both variables are required; `ALLOW_INSECURE` is documented as dev-only
 and prints a warning in future versions.
 
+## Upload roots (v0.3+)
+
+`roboflow_upload_image` and `roboflow_upload_images_batch` accept a
+`{"kind":"path", ...}` source. The path **must** live under one of the
+allowed roots set via `ROBOFLOW_MCP_UPLOAD_ROOTS` (CSV of absolute
+directories). Every path is:
+
+1. Rejected outright if it (or any parent) is a symlink.
+2. Resolved with `Path.resolve(strict=True)` — the file must exist and
+   be a regular file.
+3. Checked against the list of allowed roots (after `resolve()` on
+   each root).
+
+If the variable is unset, path uploads are disabled entirely and the
+tool raises `ImageGuardError`. URL and base64 uploads still work.
+
+```bash
+export ROBOFLOW_MCP_UPLOAD_ROOTS=/home/ops/datasets,/data/inbox
+```
+
+Every path upload also runs through the image-content guard (Pillow
+verify + load, MIME whitelist, size/dimension caps, decompression-bomb
+check).
+
+## URL ingestion
+
+`roboflow_upload_image` with `{"kind":"url", ...}` runs through the
+SSRF guard before any fetch:
+
+- Scheme allowlist: `https` only (`http` with `ROBOFLOW_MCP_ALLOW_INSECURE=1`).
+- IP-range blocklist: RFC1918 (10/8, 172.16/12, 192.168/16), loopback,
+  link-local (169.254/16, fe80::/10), multicast, IANA-reserved,
+  unspecified, and all the cloud-metadata IPs (169.254.169.254,
+  169.254.170.2, fd00:ec2::254).
+- DNS-first: the hostname is resolved *before* the HTTP request so a
+  DNS answer containing any blocked address rejects the whole fetch,
+  even if it also returns a public IP.
+- 25 MiB / 30 s caps on the download itself.
+
+Residual risk: a DNS rebinding attack between our lookup and httpx's
+internal resolution can swing the IP. Full mitigation (a custom httpx
+transport that pins the resolved IP) lands in v0.5.
+
+## Export downloads
+
+`roboflow_download_export` is gated behind:
+
+- `ROBOFLOW_MCP_ENABLE_DOWNLOADS=true` (default true — set to `false`
+  to hard-disable downloads).
+- `ROBOFLOW_MCP_MODE=curate` or `full`.
+- `confirm="yes"` argument on every call.
+- Writes go under `ROBOFLOW_MCP_EXPORT_CACHE_DIR` (default
+  `~/.cache/roboflow-mcp`) unless the caller passes an explicit
+  `dest_dir`.
+
+Zip extraction (when `extract=True`) enforces a **zip-slip guard**:
+every member is resolved against the extraction directory and rejected
+if it escapes. See `tests/unit/tools/test_download.py::test_download_export_refuses_zip_slip`.
+
 ## Runbook: suspected leak
 
 1. Rotate the Roboflow API key immediately.

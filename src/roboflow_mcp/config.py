@@ -45,6 +45,22 @@ def _parse_csv(raw: object) -> frozenset[str]:
     return frozenset(part.strip() for part in text.split(",") if part.strip())
 
 
+def _parse_path_list(raw: object) -> tuple[Path, ...]:
+    """Parse a comma-separated env var into a tuple of ``Path``.
+
+    Leaves the ``Path`` objects unresolved — callers that need the
+    canonical filesystem path (e.g. the path guard) resolve at use time
+    so we don't stat the filesystem at settings load.
+    """
+    if raw is None or raw == "":
+        return ()
+    if isinstance(raw, (list, tuple, set, frozenset)):
+        items = [str(v).strip() for v in raw if str(v).strip()]
+    else:
+        items = [part.strip() for part in str(raw).split(",") if part.strip()]
+    return tuple(Path(item).expanduser() for item in items)
+
+
 class RoboflowSettings(BaseSettings):
     """Runtime settings for the Roboflow MCP server.
 
@@ -127,6 +143,28 @@ class RoboflowSettings(BaseSettings):
         alias="ROBOFLOW_MCP_MAX_LIST_LENGTH",
     )
 
+    # --- ingestion (v0.3) ------------------------------------------------
+    # `upload_roots` is the allowlist of directories under which local-file
+    # uploads may originate. Unset = path uploads disabled; caller must
+    # use url / base64 sources instead.
+    upload_roots: Annotated[tuple[Path, ...], NoDecode] = Field(
+        default=(),
+        alias="ROBOFLOW_MCP_UPLOAD_ROOTS",
+    )
+    max_upload_bytes: int = Field(
+        default=25 * 1024 * 1024,
+        ge=1,
+        alias="ROBOFLOW_MCP_MAX_UPLOAD_BYTES",
+    )
+    export_cache_dir: Path = Field(
+        default=Path.home() / ".cache" / "roboflow-mcp",
+        alias="ROBOFLOW_MCP_EXPORT_CACHE_DIR",
+    )
+    enable_downloads: bool = Field(
+        default=True,
+        alias="ROBOFLOW_MCP_ENABLE_DOWNLOADS",
+    )
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _normalise_log_level(cls, value: str) -> str:
@@ -151,3 +189,8 @@ class RoboflowSettings(BaseSettings):
     @classmethod
     def _parse_allowlists(cls, value: object) -> frozenset[str]:
         return _parse_csv(value)
+
+    @field_validator("upload_roots", mode="before")
+    @classmethod
+    def _parse_upload_roots(cls, value: object) -> tuple[Path, ...]:
+        return _parse_path_list(value)

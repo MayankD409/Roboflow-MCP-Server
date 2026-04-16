@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-server-roboflow"
-version = "0.2.0"
-description = "Hardened MCP server for the Roboflow API: capability scopes, audit log, dry-run, strict TLS, Sigstore-signed releases."
+version = "0.3.0"
+description = "Hardened MCP server for the Roboflow API: dataset ingestion, image tagging, annotation upload, version lifecycle. Capability-scoped, audited, SSRF-guarded."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -33,9 +33,15 @@ dependencies = [
   "pydantic-settings>=2.4",
   "tenacity>=9.0",
   "anyio>=4.4",
+  "Pillow>=10.3",
 ]
 
 [project.optional-dependencies]
+# `[sdk]` is the Roboflow Python SDK, needed only for `roboflow_download_export`
+# (the SDK handles multipart zip unpacking).
+sdk = [
+  "roboflow>=1.1",
+]
 dev = [
   "pytest>=8.3",
   "pytest-asyncio>=0.24",
@@ -48,6 +54,7 @@ dev = [
   "types-requests",
   "bandit>=1.7",
   "pip-audit>=2.7",
+  "hypothesis>=6.100",
 ]
 
 [project.urls]
@@ -104,7 +111,7 @@ warn_redundant_casts = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["roboflow.*", "vcr.*"]
+module = ["roboflow.*", "vcr.*", "PIL.*"]
 ignore_missing_imports = true
 
 # ---------- pytest ----------
@@ -115,6 +122,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
   "contract: opt-in tests that hit the real Roboflow API",
+  "redteam: adversarial input fixtures (prompt injection, SSRF, path traversal, malformed images)",
 ]
 
 # ---------- coverage ----------
