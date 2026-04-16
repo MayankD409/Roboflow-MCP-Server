@@ -65,3 +65,19 @@ class CircuitOpenError(RoboflowMCPError):
     def __init__(self, message: str, *, retry_after: float | None = None) -> None:
         super().__init__(message)
         self.retry_after = retry_after
+
+
+class SafetyError(RoboflowMCPError):
+    """Raised when a safety guard (URL / path / image) rejects an input."""
+
+
+class UrlGuardError(SafetyError):
+    """Raised when a URL fails the SSRF / scheme / size guard."""
+
+
+class PathGuardError(SafetyError):
+    """Raised when a local path escapes the configured upload roots."""
+
+
+class ImageGuardError(SafetyError):
+    """Raised when image content fails validation (format, size, dimensions)."""

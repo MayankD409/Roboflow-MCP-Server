@@ -46,17 +46,43 @@ def test_build_server_has_expected_name() -> None:
     assert mcp.name == "mcp-server-roboflow"
 
 
-async def test_list_tools_returns_all_v01_tools() -> None:
+async def test_list_tools_returns_all_tools() -> None:
     mcp = build_server(_make_settings())
     names = {tool.name for tool in await mcp.list_tools()}
-    assert {
+    expected = {
+        # v0.1
         "roboflow_get_workspace",
         "roboflow_list_projects",
         "roboflow_search_images",
         "roboflow_add_image_tags",
         "roboflow_remove_image_tags",
         "roboflow_set_image_tags",
-    } <= names
+        # v0.3 ingestion
+        "roboflow_upload_image",
+        "roboflow_upload_images_batch",
+        "roboflow_delete_image",
+        "roboflow_upload_annotation",
+        "roboflow_get_image",
+        "roboflow_list_image_batches",
+        "roboflow_get_project",
+        "roboflow_list_versions",
+        "roboflow_get_version",
+        "roboflow_create_version",
+        "roboflow_get_version_generation_status",
+        "roboflow_export_version",
+        "roboflow_delete_version",
+        "roboflow_download_export",
+    }
+    assert expected <= names, f"Missing tools: {expected - names}"
+
+
+async def test_v03_resource_registered() -> None:
+    mcp = build_server(_make_settings())
+    resources = await mcp.list_resource_templates()
+    uris = {str(r.uriTemplate) for r in resources}
+    assert any("roboflow://workspace/" in uri and "versions" in uri for uri in uris), (
+        f"version resource not registered (got {uris})"
+    )
 
 
 async def test_allow_list_filters_registration() -> None:
