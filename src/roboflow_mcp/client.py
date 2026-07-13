@@ -43,6 +43,18 @@ from .errors import (
 _DEFAULT_TIMEOUT = 30.0
 _MAX_ATTEMPTS = 3
 
+_SESSION_COOKIE_MISSING_MSG = (
+    "This tool needs ROBOFLOW_SESSION_COOKIE: the Cookie header value from "
+    "an authenticated app.roboflow.com browser session (DevTools -> Network "
+    "-> any app.roboflow.com request; the __session pair is the essential "
+    "part). Roboflow has no public API for this action."
+)
+_SESSION_REJECTED_MSG = (
+    "Roboflow app session was rejected. Session cookies expire; refresh "
+    "ROBOFLOW_SESSION_COOKIE from a logged-in app.roboflow.com browser "
+    "session and retry."
+)
+
 
 class _TokenBucket:
     """Two-window sliding counter. Rejects with :class:`QuotaExceededError`."""
@@ -154,20 +166,21 @@ class RoboflowClient:
 
     @staticmethod
     def _check_tls(settings: RoboflowSettings) -> None:
-        url = settings.api_url.lower()
-        if url.startswith("https://"):
-            return
-        if settings.allow_insecure:
-            # Operator opted in to HTTP for local dev against a proxy or
-            # self-hosted endpoint. We don't fail, but we also don't try to
-            # paper over the risk — the audit log will still record the
-            # cleartext URL, and anyone reading the code knows it happened.
-            return
-        raise ConfigurationError(
-            f"ROBOFLOW_API_URL={settings.api_url!r} must use https:// . "
-            "Set ROBOFLOW_MCP_ALLOW_INSECURE=1 to override for local "
-            "development against a trusted proxy."
-        )
+        for url in (settings.api_url, settings.app_url):
+            if url.lower().startswith("https://"):
+                continue
+            if settings.allow_insecure:
+                # Operator opted in to HTTP for local dev against a proxy or
+                # self-hosted endpoint. We don't fail, but we also don't try
+                # to paper over the risk — the audit log will still record
+                # the cleartext URL, and anyone reading the code knows it
+                # happened.
+                continue
+            raise ConfigurationError(
+                f"{url!r} must use https:// . Set "
+                "ROBOFLOW_MCP_ALLOW_INSECURE=1 to override for local "
+                "development against a trusted proxy."
+            )
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -221,6 +234,49 @@ class RoboflowClient:
 
         # Unreachable: AsyncRetrying with reraise=True either returns or raises.
         raise RuntimeError("retry loop exited without a result")  # pragma: no cover
+
+    async def request_app_session(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: Any = None,
+    ) -> Any:
+        """Send a request to the app host, authenticated by session cookie.
+
+        A few curation actions (moving reviewed annotation-job images into
+        the dataset) have no public API: the web app performs them through
+        internal endpoints on ``app.roboflow.com`` authenticated by the
+        operator's browser session, not the API key. This method mirrors
+        :meth:`request` but targets ``ROBOFLOW_APP_URL``, sends
+        ``ROBOFLOW_SESSION_COOKIE`` as the ``Cookie`` header, and never
+        injects ``api_key``. Retry is disabled because these endpoints
+        mutate dataset state and are not idempotent.
+        """
+        cookie = self._settings.session_cookie
+        if cookie is None or not cookie.get_secret_value():
+            raise ConfigurationError(_SESSION_COOKIE_MISSING_MSG)
+        url = self._settings.app_url.rstrip("/") + path
+        headers = {"Cookie": cookie.get_secret_value()}
+
+        await self._bucket.acquire()
+        await self._breaker.before_request()
+
+        try:
+            response = await self._client.request(
+                method, url, json=json, headers=headers
+            )
+            self._raise_for_status(response)
+        except AuthenticationError as exc:
+            # Caller error (expired cookie), not a server fault — mirror
+            # `request`, which keeps 4xx away from the circuit breaker.
+            raise AuthenticationError(_SESSION_REJECTED_MSG) from exc
+        except (RoboflowAPIError, httpx.TransportError):
+            await self._breaker.record_outcome(success=False)
+            raise
+        else:
+            await self._breaker.record_outcome(success=True)
+            return _parse_response(response)
 
     async def request_multipart(
         self,
