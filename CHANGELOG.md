@@ -33,6 +33,13 @@ this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   epoch `created` / `updated` timestamps (e.g. `1719951708.882`), which
   made `roboflow_get_project` fail against real workspaces.
 
+### Security
+
+- Refreshed `uv.lock` (`uv lock --upgrade`) to clear 37 pip-audit
+  advisories across 12 packages accumulated since v0.3.0 (pillow,
+  cryptography, starlette, pyjwt, urllib3, python-multipart,
+  pydantic-settings, msgpack, click, idna, pip, vcrpy).
+
 ## [0.3.0] - 2026-04-16
 
 ### Added — ingestion tools (13 new tools, 20 total)
