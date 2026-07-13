@@ -46,6 +46,8 @@ Environment variables (copy `.env.example` to `.env` for local dev):
 | `ROBOFLOW_API_KEY` | yes | Your Roboflow private API key |
 | `ROBOFLOW_WORKSPACE` | no | Default workspace slug, so tools can omit it |
 | `ROBOFLOW_API_URL` | no | Override the API base (default `https://api.roboflow.com`) |
+| `ROBOFLOW_APP_URL` | no | Override the app host used by session-cookie tools (default `https://app.roboflow.com`) |
+| `ROBOFLOW_SESSION_COOKIE` | no | Browser-session Cookie header for `roboflow_add_reviewed_to_dataset`; Roboflow has no public API for that action (see [docs/TOOLS.md](docs/TOOLS.md)) |
 | `ROBOFLOW_MCP_LOG_LEVEL` | no | `DEBUG`, `INFO`, `WARNING`, `ERROR` (default `INFO`) |
 
 ## Tools

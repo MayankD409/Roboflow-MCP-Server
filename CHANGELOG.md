@@ -7,6 +7,41 @@ this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-13
+
+### Added — annotation jobs
+
+- **`roboflow_list_annotation_jobs`** — read the Annotate-tab job queues
+  (labeling / review progress per job, `ready_to_add` flag) via
+  `GET /{ws}/{project}/jobs`.
+- **`roboflow_add_reviewed_to_dataset`** — move fully-reviewed
+  annotation-job images into the dataset with global train/valid/test
+  ratios (default 70/20/10). Destructive: requires `confirm="yes"` and
+  curate/full mode. Roboflow has no public API for this action, so the
+  tool replays the web app's internal
+  `POST /datasets/addImagesFromJobToDataset` endpoint and requires
+  `ROBOFLOW_SESSION_COOKIE` (a logged-in app.roboflow.com browser
+  session). Aborts on the first response that misses the expected
+  contract; re-runs resume where it stopped.
+- `ROBOFLOW_SESSION_COOKIE` / `ROBOFLOW_APP_URL` settings and
+  `RoboflowClient.request_app_session` — session-cookie transport for
+  internal app endpoints. The cookie is scrubbed from logs like the API
+  key, never injected into query params, and the app host is held to
+  the same TLS requirement as the API host.
+
+### Fixed
+
+- Project / version models no longer reject Roboflow's fractional
+  epoch `created` / `updated` timestamps (e.g. `1719951708.882`), which
+  made `roboflow_get_project` fail against real workspaces.
+
+### Security
+
+- Refreshed `uv.lock` (`uv lock --upgrade`) to clear 37 pip-audit
+  advisories across 12 packages accumulated since v0.3.0 (pillow,
+  cryptography, starlette, pyjwt, urllib3, python-multipart,
+  pydantic-settings, msgpack, click, idna, pip, vcrpy).
+
 ## [0.3.0] - 2026-04-16
 
 ### Added — ingestion tools (13 new tools, 20 total)
@@ -275,7 +310,8 @@ against a real Roboflow workspace.
   Unix-millisecond int (e.g. `1715286185986`). Caught against a real
   workspace during v0.1 verification.
 
-[Unreleased]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/MayankD409/Roboflow-MCP-Server/compare/v0.1.0...v0.1.1

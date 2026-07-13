@@ -18,6 +18,7 @@ from .resources import version as version_resource
 from .tools import annotation as annotation_tools
 from .tools import download as download_tools
 from .tools import image as image_tools
+from .tools import jobs as jobs_tools
 from .tools import project as project_tools
 from .tools import upload as upload_tools
 from .tools import version as version_tools
@@ -36,7 +37,12 @@ _INSTRUCTIONS = (
     "path uploads go through a path-traversal guard and must live under "
     "ROBOFLOW_MCP_UPLOAD_ROOTS; every image is validated with Pillow "
     "before upload. Every invocation is recorded in the JSONL audit "
-    "log at ROBOFLOW_MCP_AUDIT_LOG (stderr if unset)."
+    "log at ROBOFLOW_MCP_AUDIT_LOG (stderr if unset). Annotation-job "
+    "tools list Annotate-tab review queues and move fully-reviewed job "
+    "images into the dataset; roboflow_add_reviewed_to_dataset "
+    "additionally needs ROBOFLOW_SESSION_COOKIE (an app.roboflow.com "
+    "browser-session cookie) because Roboflow has no public API for "
+    "that action."
 )
 
 
@@ -53,9 +59,13 @@ def build_server(
     and build fresh instances.
     """
     settings = settings or RoboflowSettings()
+    session_cookie = (
+        settings.session_cookie.get_secret_value() if settings.session_cookie else ""
+    )
     configure_logging(
         settings.log_level,
         secret=settings.api_key.get_secret_value(),
+        extra_secrets=(session_cookie,) if session_cookie else None,
     )
     http_client = client or RoboflowClient(settings)
     audit_logger = audit or AuditLogger(path=settings.audit_log_path)
@@ -67,6 +77,7 @@ def build_server(
     upload_tools.register(mcp, http_client, settings, audit=audit_logger)
     annotation_tools.register(mcp, http_client, settings, audit=audit_logger)
     project_tools.register(mcp, http_client, settings, audit=audit_logger)
+    jobs_tools.register(mcp, http_client, settings, audit=audit_logger)
     version_tools.register(mcp, http_client, settings, audit=audit_logger)
     download_tools.register(mcp, http_client, settings, audit=audit_logger)
 

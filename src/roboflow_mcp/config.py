@@ -82,6 +82,17 @@ class RoboflowSettings(BaseSettings):
         default="https://api.roboflow.com",
         alias="ROBOFLOW_API_URL",
     )
+    # The app host + browser-session cookie back the few curation actions
+    # (annotation-job "Add to Dataset") that have no public API. Unset
+    # cookie = those tools refuse to run; everything else is unaffected.
+    app_url: str = Field(
+        default="https://app.roboflow.com",
+        alias="ROBOFLOW_APP_URL",
+    )
+    session_cookie: SecretStr | None = Field(
+        default=None,
+        alias="ROBOFLOW_SESSION_COOKIE",
+    )
     log_level: str = Field(default="INFO", alias="ROBOFLOW_MCP_LOG_LEVEL")
 
     # --- capability model ------------------------------------------------

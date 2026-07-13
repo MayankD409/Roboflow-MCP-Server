@@ -43,6 +43,39 @@ async def test_get_project_happy(
     assert detail.classes == {"box": 500}
 
 
+@respx.mock
+async def test_get_project_parses_fractional_timestamps(
+    settings_factory: SettingsFactory,
+) -> None:
+    # Roboflow returns epoch floats (e.g. 1719951708.882); the model must
+    # not reject them (regression: int-first union raised ValidationError).
+    respx.get("https://api.roboflow.com/contoro/boxes").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "project": {
+                    "id": "contoro/boxes",
+                    "type": "object-detection",
+                    "name": "Boxes",
+                    "created": 1719951708.882,
+                    "updated": 1783958324.442,
+                }
+            },
+        )
+    )
+    settings = settings_factory(workspace="contoro")
+    async with RoboflowClient(settings) as client:
+        detail = await project_tools.get_project_impl(
+            "boxes",
+            workspace=None,
+            client=client,
+            settings=settings,
+        )
+    assert isinstance(detail, ProjectDetail)
+    assert detail.created == 1719951708.882
+    assert detail.updated == 1783958324.442
+
+
 async def test_get_project_dry_run(
     settings_factory: SettingsFactory,
 ) -> None:

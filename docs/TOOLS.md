@@ -55,6 +55,29 @@ Every image-accepting tool takes a discriminated `source` union:
 Every mode runs through the URL / path / image guards before the HTTP
 request is built. See `docs/SECURITY_MODEL.md` threats T3/T4/T8.
 
+## Annotation jobs (v0.4)
+
+| Tool | Scope | Wraps |
+|---|---|---|
+| `roboflow_list_annotation_jobs` | readonly | `GET /{ws}/{project}/jobs` |
+| `roboflow_add_reviewed_to_dataset` | curate (destructive) | `POST {app}/datasets/addImagesFromJobToDataset` per job |
+
+`roboflow_list_annotation_jobs` reads the Annotate-tab queues; jobs
+whose images are all approved are flagged `ready_to_add`.
+
+`roboflow_add_reviewed_to_dataset` moves every fully-reviewed job into
+the dataset with train/valid/test counts that land on the requested
+global ratios (default 70/20/10). Roboflow has **no public API** for
+this action, so the tool replays the web app's internal endpoint and
+requires `ROBOFLOW_SESSION_COOKIE` — the Cookie header from a logged-in
+app.roboflow.com browser session. Session cookies expire; on 401/403
+the error tells you to refresh the value. Treat the cookie as a
+full-account credential (it is scrubbed from logs like the API key).
+If Roboflow ever changes the internal contract, the tool aborts on the
+first response that doesn't match `{"success": true, "numImagesAdded": N}`;
+re-running after a partial failure picks up exactly the remaining jobs
+because added jobs leave the review queue server-side.
+
 ## Dataset versions (v0.3)
 
 | Tool | Scope | Wraps |
