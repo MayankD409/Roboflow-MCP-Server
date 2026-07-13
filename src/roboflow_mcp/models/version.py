@@ -32,8 +32,8 @@ class ProjectDetail(BaseModel):
     versions: int = 0
     public: bool = False
     classes: dict[str, int] = Field(default_factory=dict)
-    created: int | str | None = None
-    updated: int | str | None = None
+    created: int | float | str | None = None
+    updated: int | float | str | None = None
     raw: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -44,7 +44,7 @@ class VersionSummary(BaseModel):
 
     id: str
     name: str | None = None
-    created: int | str | None = None
+    created: int | float | str | None = None
     images: int = 0
     trained: bool = False
 
@@ -56,7 +56,7 @@ class VersionDetail(BaseModel):
 
     id: str
     name: str | None = None
-    created: int | str | None = None
+    created: int | float | str | None = None
     images: int = 0
     splits: dict[str, int] = Field(default_factory=dict)
     preprocessing: dict[str, Any] = Field(default_factory=dict)
