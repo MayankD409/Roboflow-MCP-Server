@@ -27,6 +27,8 @@ def settings_factory() -> SettingsFactory:
             api_key=SecretStr("k_test"),
             workspace=None,
             api_url="https://api.roboflow.com",
+            app_url="https://app.roboflow.com",
+            session_cookie=None,
             log_level="INFO",
             # Default to ``CURATE`` mode so destructive impls can be exercised.
             # Tests that want readonly pass mode=readonly explicitly.

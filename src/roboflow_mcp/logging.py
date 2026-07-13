@@ -103,16 +103,24 @@ class SecretScrubbingFormatter(logging.Formatter):
         return scrub_many(formatted, (self._secret, *self._extra))
 
 
-def configure_logging(level: str, *, secret: str) -> None:
+def configure_logging(
+    level: str,
+    *,
+    secret: str,
+    extra_secrets: Iterable[str] | None = None,
+) -> None:
     """Install a single stream handler on the root logger.
 
     Idempotent: replaces any existing handlers so we don't double-print.
+    ``extra_secrets`` carries additional literals to scrub (e.g. the
+    app-session cookie) alongside the API key.
     """
     handler = logging.StreamHandler()
     handler.setFormatter(
         SecretScrubbingFormatter(
             fmt="%(asctime)s %(levelname)s %(name)s: %(message)s",
             secret=secret,
+            extra_secrets=extra_secrets,
         )
     )
     root = logging.getLogger()
