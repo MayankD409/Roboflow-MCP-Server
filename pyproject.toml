@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-server-roboflow"
-version = "0.3.0"
+version = "0.4.0"
 description = "Hardened MCP server for the Roboflow API: dataset ingestion, image tagging, annotation upload, version lifecycle. Capability-scoped, audited, SSRF-guarded."
 readme = "README.md"
 license = { file = "LICENSE" }
